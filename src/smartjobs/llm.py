@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+import time
 from typing import Any, Iterable
 
 from pydantic import ValidationError
@@ -34,7 +35,8 @@ class OpenAIJobLLM:
             except Exception:
                 OpenAI = None
             if OpenAI is not None:
-                kwargs = {"api_key": settings.openai_api_key}
+                kwargs = {"api_key": settings.openai_api_key, "timeout": settings.llm_request_timeout_seconds}
+                kwargs["max_retries"] = max(settings.llm_max_retries, 0)
                 if settings.openai_base_url:
                     kwargs["base_url"] = settings.openai_base_url
                 self.client = OpenAI(**kwargs)
@@ -43,8 +45,10 @@ class OpenAIJobLLM:
     def enabled(self) -> bool:
         return self.client is not None
 
-    def enrich_job(self, raw: RawJobRecord) -> EnrichedJobRecord:
+    def enrich_job(self, raw: RawJobRecord, *, raise_on_error: bool = False) -> EnrichedJobRecord:
         if not self.enabled:
+            if raise_on_error:
+                raise LLMRequiredError("OpenAI client tidak aktif untuk job enrichment.")
             return fallback_enrich_job(raw)
 
         schema_hint = {
@@ -67,23 +71,35 @@ class OpenAIJobLLM:
             "scraped_at": "string|null",
             "raw_json": "string",
         }
-        content = self._chat_json(
-            prompt_key="job_enrichment",
-            model=self.settings.llm_model,
-            temperature=0,
-            messages=[
-                {
-                    "role": "user",
-                    "content": json.dumps(
-                        {"schema_hint": schema_hint, "raw_record": raw.model_dump(by_alias=True)},
-                        ensure_ascii=False,
-                    ),
-                },
-            ],
-        )
         try:
+            content = self._chat_json(
+                prompt_key="job_enrichment",
+                model=self.settings.llm_model,
+                temperature=0,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": json.dumps(
+                            {"schema_hint": schema_hint, "raw_record": raw.model_dump(by_alias=True)},
+                            ensure_ascii=False,
+                        ),
+                    },
+                ],
+            )
             return EnrichedJobRecord.model_validate(json.loads(content))
-        except (json.JSONDecodeError, ValidationError):
+        except (json.JSONDecodeError, ValidationError) as exc:
+            if raise_on_error:
+                raise RuntimeError(
+                    "Output LLM untuk job enrichment tidak valid JSON / schema. "
+                    f"source_id={raw.source_id}. Detail: {exc}"
+                ) from exc
+            return fallback_enrich_job(raw)
+        except Exception as exc:
+            if raise_on_error:
+                raise RuntimeError(
+                    "Panggilan LLM untuk job enrichment gagal. "
+                    f"source_id={raw.source_id}. Detail: {exc}"
+                ) from exc
             return fallback_enrich_job(raw)
 
     def analyze_cv_text(self, cv_text: str) -> ParsedCV:
@@ -279,22 +295,38 @@ class OpenAIJobLLM:
     def _chat_json(self, *, prompt_key: str, model: str, temperature: float, messages: list[dict[str, Any]]) -> str:
         self._ensure_runtime_llm_enabled(prompt_key)
         system_prompt = self.prompts.get_prompt(prompt_key)
-        with self.observer.trace(
-            "llm.chat_json",
-            {
-                "prompt_key": prompt_key,
-                "prompt_name": self.prompts.get_prompt_meta(prompt_key).get("name", prompt_key),
-                "model": model,
-                "message_count": len(messages) + 1,
-            },
-        ):
-            response = self.client.chat.completions.create(
-                model=model,
-                temperature=temperature,
-                response_format={"type": "json_object"},
-                messages=[{"role": "system", "content": system_prompt}, *messages],
-            )
-        return response.choices[0].message.content or "{}"
+        max_attempts = max(1, int(self.settings.llm_max_retries))
+        backoff_seconds = max(0.0, float(self.settings.llm_retry_backoff_seconds))
+        last_exc: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            try:
+                with self.observer.trace(
+                    "llm.chat_json",
+                    {
+                        "prompt_key": prompt_key,
+                        "prompt_name": self.prompts.get_prompt_meta(prompt_key).get("name", prompt_key),
+                        "model": model,
+                        "message_count": len(messages) + 1,
+                        "attempt": attempt,
+                    },
+                ):
+                    response = self.client.chat.completions.create(
+                        model=model,
+                        temperature=temperature,
+                        response_format={"type": "json_object"},
+                        messages=[{"role": "system", "content": system_prompt}, *messages],
+                    )
+                return response.choices[0].message.content or "{}"
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= max_attempts:
+                    raise RuntimeError(
+                        f"Panggilan OpenAI gagal setelah {max_attempts} percobaan untuk prompt '{prompt_key}'. "
+                        f"Periksa OPENAI_API_KEY, koneksi jaringan, quota, dan timeout. Detail asli: {exc}"
+                    ) from exc
+                if backoff_seconds > 0:
+                    time.sleep(backoff_seconds * attempt)
+        raise RuntimeError(f"Panggilan OpenAI gagal untuk prompt '{prompt_key}'.") from last_exc
 
     def _ensure_runtime_llm_enabled(self, feature: str) -> None:
         if self.enabled:

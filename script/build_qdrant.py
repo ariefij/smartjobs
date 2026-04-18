@@ -37,7 +37,14 @@ def main() -> None:
     print(f"Preview chunk ditulis ke {preview_output} dengan total {len(chunks)} chunk")
 
     if not args.preview_only:
-        total = QdrantJobStore(settings).index_records(records)
+        try:
+            total = QdrantJobStore(settings).index_records(records)
+        except Exception as exc:
+            raise SystemExit(
+                "Gagal indexing ke Qdrant. Pastikan QDRANT_URL mengarah ke endpoint Qdrant eksternal yang valid, "
+                "QDRANT_API_KEY sudah benar bila diperlukan, dan OPENAI_API_KEY terisi untuk embedding. "
+                f"Detail asli: {exc}"
+            ) from exc
         print(f"Berhasil mengindeks {total} chunk ke koleksi Qdrant '{settings.qdrant_collection_name}'")
 
 

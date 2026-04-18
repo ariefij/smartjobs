@@ -1,28 +1,20 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app/src
-ENV POETRY_VERSION=2.1.3
-
 WORKDIR /app
 
-RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    POETRY_VIRTUALENVS_CREATE=false
 
-COPY pyproject.toml README.md ./
+RUN pip install --no-cache-dir poetry
+
+COPY pyproject.toml poetry.lock* ./
 COPY src ./src
-COPY script ./script
 COPY dataset ./dataset
-COPY docs ./docs
-COPY .env.example ./
+COPY README.md ./
 COPY langfuse_prompts.json ./
-COPY flow.svg ./
-COPY deployment_gcp.md ./
 
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi
+RUN poetry install --only main --no-interaction --no-ansi
 
-EXPOSE 8000
-EXPOSE 8501
-
-CMD ["python", "-m", "smartjobs.server"]
+EXPOSE 8080
+CMD ["sh", "-c", "uvicorn smartjobs.server:app --host 0.0.0.0 --port ${PORT:-8080}"]

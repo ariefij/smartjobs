@@ -1,16 +1,3 @@
-__pycache__/
-.pytest_cache/
-.venv/
 .env
-*.pyc
-*.pyo
 .DS_Store
-.streamlit/
-.coverage
-htmlcov/
-dist/
-build/
-.mypy_cache/
-.ruff_cache/
-.idea/
-.vscode/
+dataset/processed/

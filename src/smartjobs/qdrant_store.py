@@ -1,10 +1,16 @@
 from __future__ import annotations
 
 from typing import Iterable
+from uuid import NAMESPACE_URL, uuid5
 
 from .chunking import build_chunk_documents
 from .config import Settings
 from .schemas import EnrichedJobRecord, SearchMatch
+
+
+def make_qdrant_point_id(source_id: str, chunk_index: int) -> str:
+    seed = f"smartjobs:{source_id}:{chunk_index}"
+    return str(uuid5(NAMESPACE_URL, seed))
 
 
 class QdrantJobStore:
@@ -21,7 +27,9 @@ class QdrantJobStore:
         except Exception as exc:
             raise RuntimeError("Dependensi Qdrant/LangChain belum terpasang.") from exc
 
-        client = QdrantClient(url=self.settings.qdrant_url, api_key=self.settings.qdrant_api_key)
+        qdrant_url = self.settings.require_qdrant_url()
+        openai_api_key = self.settings.require_openai_api_key("indexing embedding ke Qdrant")
+        client = QdrantClient(url=qdrant_url, api_key=self.settings.qdrant_api_key)
         collections = {item.name for item in client.get_collections().collections}
         if self.settings.qdrant_collection_name not in collections:
             client.create_collection(
@@ -31,7 +39,7 @@ class QdrantJobStore:
 
         embeddings = OpenAIEmbeddings(
             model=self.settings.embedding_model,
-            api_key=self.settings.openai_api_key,
+            api_key=openai_api_key,
             base_url=self.settings.openai_base_url,
         )
         vector_store = QdrantVectorStore(
@@ -45,7 +53,7 @@ class QdrantJobStore:
         for record in records:
             for chunk in build_chunk_documents(record, self.settings.chunk_size, self.settings.chunk_overlap):
                 documents.append(Document(page_content=chunk["text"], metadata=chunk["metadata"]))
-                ids.append(f"{record.source_id}:{chunk['chunk_index']}")
+                ids.append(make_qdrant_point_id(record.source_id, int(chunk['chunk_index'])))
         if documents:
             vector_store.add_documents(documents=documents, ids=ids)
         return len(documents)
@@ -58,10 +66,12 @@ class QdrantJobStore:
         except Exception as exc:
             raise RuntimeError("Dependensi untuk pencarian semantik belum terpasang.") from exc
 
-        client = QdrantClient(url=self.settings.qdrant_url, api_key=self.settings.qdrant_api_key)
+        qdrant_url = self.settings.require_qdrant_url()
+        openai_api_key = self.settings.require_openai_api_key("semantic search ke Qdrant")
+        client = QdrantClient(url=qdrant_url, api_key=self.settings.qdrant_api_key)
         embeddings = OpenAIEmbeddings(
             model=self.settings.embedding_model,
-            api_key=self.settings.openai_api_key,
+            api_key=openai_api_key,
             base_url=self.settings.openai_base_url,
         )
         vector_store = QdrantVectorStore(

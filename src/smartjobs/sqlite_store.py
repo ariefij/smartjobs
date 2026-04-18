@@ -61,11 +61,19 @@ class SQLiteJobStore:
             conn.commit()
 
     def rebuild(self, records: list[EnrichedJobRecord]) -> None:
+        unique_records: list[EnrichedJobRecord] = []
+        seen_source_ids: set[str] = set()
+        for record in records:
+            if record.source_id in seen_source_ids:
+                continue
+            seen_source_ids.add(record.source_id)
+            unique_records.append(record)
+
         self.init_schema()
         with self.connect() as conn:
             conn.execute("DELETE FROM jobs")
             conn.execute("DELETE FROM jobs_fts")
-            for record in records:
+            for record in unique_records:
                 cursor = conn.execute(
                     """
                     INSERT INTO jobs (
