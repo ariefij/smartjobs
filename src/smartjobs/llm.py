@@ -189,15 +189,23 @@ class OpenAIJobLLM:
         for image_bytes, mime_type in image_items:
             encoded = base64.b64encode(image_bytes).decode("utf-8")
             content.append({"type": "input_image", "image_url": f"data:{mime_type};base64,{encoded}"})
-        with self.observer.trace("llm.extract_text_from_images", {"model": self.settings.vision_model, "image_count": len(image_items)}):
-            response = self.client.responses.create(
-                model=self.settings.vision_model,
-                input=[{"role": "user", "content": content}],
-            )
-        text = (response.output_text or "").strip()
-        if not text:
-            raise LLMResponseFormatError("GPT-4 Vision tidak mengembalikan teks OCR yang bisa dipakai.")
-        return text
+        try:
+            with self.observer.trace("llm.extract_text_from_images", {"model": self.settings.vision_model, "image_count": len(image_items)}):
+                response = self.client.responses.create(
+                    model=self.settings.vision_model,
+                    input=[{"role": "user", "content": content}],
+                )
+            text = (response.output_text or "").strip()
+            if not text:
+                raise LLMResponseFormatError("GPT-4 Vision tidak mengembalikan teks OCR yang bisa dipakai.")
+            return text
+        except LLMResponseFormatError:
+            raise
+        except Exception as exc:
+            raise LLMResponseFormatError(
+                "Vision OCR gagal diproses. Periksa format file, ukuran gambar/PDF, koneksi ke OpenAI, dan respons model. "
+                f"Detail asli: {exc}"
+            ) from exc
 
     def generate_outputs(
         self,

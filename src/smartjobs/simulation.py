@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 import requests
 import streamlit as st
@@ -35,6 +36,45 @@ if mode in {"Analisis CV / rekomendasi", "Konsultasi gap skill"}:
         type=["txt", "md", "docx", "pdf", "png", "jpg", "jpeg", "webp"],
     )
 
+
+def _extract_error_message(payload: Any, response: requests.Response) -> str:
+    if isinstance(payload, dict):
+        detail = payload.get("detail") or payload.get("message") or payload.get("error")
+        if detail:
+            return str(detail)
+    text = (response.text or "").strip()
+    if text:
+        return text[:1000]
+    return f"Permintaan gagal dengan status {response.status_code}"
+
+
+
+def _parse_response_payload(response: requests.Response) -> dict[str, Any]:
+    content_type = response.headers.get("content-type", "")
+    if "application/json" in content_type.lower():
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raw_text = (response.text or "").strip()
+            raise RuntimeError(
+                "API mengembalikan content-type JSON tetapi body tidak valid JSON. "
+                f"Status={response.status_code}. Cuplikan respons: {raw_text[:500]}"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                "API mengembalikan JSON, tetapi bentuk payload bukan object/dict seperti yang diharapkan Streamlit."
+            )
+        return payload
+
+    raw_text = (response.text or "").strip()
+    if response.status_code >= 400:
+        raise RuntimeError(_extract_error_message(None, response))
+    raise RuntimeError(
+        "API mengembalikan respons non-JSON padahal frontend mengharapkan JSON. "
+        f"Status={response.status_code}. Content-Type={content_type or 'tidak ada'}. Cuplikan respons: {raw_text[:500]}"
+    )
+
+
 if st.button("Proses"):
     try:
         if mode == "Kueri data lowongan":
@@ -53,10 +93,12 @@ if st.button("Proses"):
                 json={"pertanyaan": pertanyaan, "riwayat": riwayat, "teks_cv": teks_cv or None, "batas": batas, "target_role": target_role or None},
                 timeout=120,
             )
-        payload = response.json()
+
+        payload = _parse_response_payload(response)
         if response.status_code >= 400:
-            st.error(payload.get("detail", f"Permintaan gagal dengan status {response.status_code}"))
+            st.error(_extract_error_message(payload, response))
             st.stop()
+
         kiri, kanan = st.columns([1, 1])
         with kiri:
             st.subheader("Output 2 - Summary natural")

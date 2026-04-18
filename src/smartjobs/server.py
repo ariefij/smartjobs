@@ -33,6 +33,11 @@ async def handle_llm_response(_: Request, exc: LLMResponseFormatError) -> JSONRe
     return JSONResponse(status_code=502, content={"detail": str(exc), "error_type": "llm_response_format_error"})
 
 
+@app.exception_handler(Exception)
+async def handle_unexpected(_: Request, exc: Exception) -> JSONResponse:
+    return JSONResponse(status_code=500, content={"detail": str(exc), "error_type": "unexpected_error"})
+
+
 @app.get("/")
 def root() -> dict:
     return {"pesan": "SmartJobs API berjalan", "mode": "multi-agent-llm"}
