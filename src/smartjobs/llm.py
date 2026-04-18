@@ -195,17 +195,15 @@ class OpenAIJobLLM:
                     model=self.settings.vision_model,
                     input=[{"role": "user", "content": content}],
                 )
-            text = (response.output_text or "").strip()
-            if not text:
-                raise LLMResponseFormatError("GPT-4 Vision tidak mengembalikan teks OCR yang bisa dipakai.")
-            return text
-        except LLMResponseFormatError:
-            raise
         except Exception as exc:
             raise LLMResponseFormatError(
-                "Vision OCR gagal diproses. Periksa format file, ukuran gambar/PDF, koneksi ke OpenAI, dan respons model. "
-                f"Detail asli: {exc}"
+                f"Vision OCR gagal saat memproses gambar CV. Detail: {exc}"
             ) from exc
+
+        text = (response.output_text or "").strip()
+        if not text:
+            raise LLMResponseFormatError("GPT-4 Vision tidak mengembalikan teks OCR yang bisa dipakai.")
+        return text
 
     def generate_outputs(
         self,

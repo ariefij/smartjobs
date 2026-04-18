@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any
 
 import requests
 import streamlit as st
@@ -37,42 +36,18 @@ if mode in {"Analisis CV / rekomendasi", "Konsultasi gap skill"}:
     )
 
 
-def _extract_error_message(payload: Any, response: requests.Response) -> str:
-    if isinstance(payload, dict):
-        detail = payload.get("detail") or payload.get("message") or payload.get("error")
-        if detail:
-            return str(detail)
-    text = (response.text or "").strip()
-    if text:
-        return text[:1000]
-    return f"Permintaan gagal dengan status {response.status_code}"
+def parse_response_payload(response: requests.Response) -> tuple[dict, str | None]:
+    content_type = (response.headers.get("content-type") or "").lower()
+    response_text = response.text or ""
 
-
-
-def _parse_response_payload(response: requests.Response) -> dict[str, Any]:
-    content_type = response.headers.get("content-type", "")
-    if "application/json" in content_type.lower():
+    if "application/json" in content_type:
         try:
             payload = response.json()
-        except ValueError as exc:
-            raw_text = (response.text or "").strip()
-            raise RuntimeError(
-                "API mengembalikan content-type JSON tetapi body tidak valid JSON. "
-                f"Status={response.status_code}. Cuplikan respons: {raw_text[:500]}"
-            ) from exc
-        if not isinstance(payload, dict):
-            raise RuntimeError(
-                "API mengembalikan JSON, tetapi bentuk payload bukan object/dict seperti yang diharapkan Streamlit."
-            )
-        return payload
+            return payload, None
+        except ValueError:
+            return {}, f"Server mengembalikan JSON yang tidak valid. Status={response.status_code}. Body={response_text[:500]}"
 
-    raw_text = (response.text or "").strip()
-    if response.status_code >= 400:
-        raise RuntimeError(_extract_error_message(None, response))
-    raise RuntimeError(
-        "API mengembalikan respons non-JSON padahal frontend mengharapkan JSON. "
-        f"Status={response.status_code}. Content-Type={content_type or 'tidak ada'}. Cuplikan respons: {raw_text[:500]}"
-    )
+    return {}, f"Server mengembalikan respons non-JSON. Status={response.status_code}. Content-Type={content_type or '-'} Body={response_text[:500]}"
 
 
 if st.button("Proses"):
@@ -94,9 +69,15 @@ if st.button("Proses"):
                 timeout=120,
             )
 
-        payload = _parse_response_payload(response)
+        payload, parse_error = parse_response_payload(response)
+        if parse_error:
+            st.error(f"Permintaan gagal: {parse_error}")
+            st.stop()
+
         if response.status_code >= 400:
-            st.error(_extract_error_message(payload, response))
+            st.error(payload.get("detail", f"Permintaan gagal dengan status {response.status_code}"))
+            if payload.get("error_type"):
+                st.caption(f"error_type: {payload['error_type']}")
             st.stop()
 
         kiri, kanan = st.columns([1, 1])
@@ -110,3 +91,4 @@ if st.button("Proses"):
             st.code(json.dumps(payload.get("output_1_json_terstruktur", {}), ensure_ascii=False, indent=2), language="json")
     except Exception as exc:
         st.error(f"Permintaan gagal: {exc}")
+
