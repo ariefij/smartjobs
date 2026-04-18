@@ -1,0 +1,32 @@
+version: "3.9"
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  api:
+    build: .
+    command: python -m smartjobs.server
+    depends_on:
+      - qdrant
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+
+  streamlit:
+    build: .
+    command: streamlit run src/smartjobs/simulation.py --server.address=0.0.0.0 --server.port=8501
+    depends_on:
+      - api
+    env_file:
+      - .env
+    ports:
+      - "8501:8501"
+
+volumes:
+  qdrant_data:

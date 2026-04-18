@@ -1,0 +1,41 @@
+[project]
+name = "smartjobs"
+version = "0.1.0"
+description = "Project AI pencarian kerja dan pencocokan CV dengan SQLite, Qdrant, FastAPI, Streamlit, LangChain, dan Langfuse"
+authors = [
+    { name = "OpenAI", email = "noreply@openai.com" }
+]
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "fastapi>=0.115.0,<1.0.0",
+    "uvicorn>=0.30.0,<1.0.0",
+    "streamlit>=1.45.0,<2.0.0",
+    "pydantic>=2.8.0,<3.0.0",
+    "pydantic-settings>=2.3.0,<3.0.0",
+    "python-dotenv>=1.0.1,<2.0.0",
+    "python-multipart>=0.0.9,<1.0.0",
+    "openai>=1.40.0,<2.0.0",
+    "langchain>=0.3.0,<1.0.0",
+    "langchain-openai>=0.2.0,<1.0.0",
+    "langchain-qdrant>=0.2.0,<1.0.0",
+    "langchain-text-splitters>=0.3.0,<1.0.0",
+    "qdrant-client>=1.11.0,<2.0.0",
+    "langfuse>=2.41.0,<4.0.0",
+    "pypdf>=5.0.0,<6.0.0",
+    "pymupdf>=1.24.0,<2.0.0",
+    "pillow>=10.4.0,<12.0.0",
+    "httpx>=0.27.0,<1.0.0",
+    "orjson>=3.10.0,<4.0.0",
+    "tenacity>=9.0.0,<10.0.0"
+]
+
+[tool.poetry]
+packages = [{ include = "smartjobs", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.0.0,<9.0.0"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

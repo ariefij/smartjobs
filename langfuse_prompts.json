@@ -1,0 +1,22 @@
+{
+  "job_enrichment": {
+    "name": "smartjobs_job_enrichment",
+    "description": "Menormalisasi record lowongan mentah menjadi skema bersih untuk indeks SQLite dan Qdrant."
+  },
+  "cv_analysis": {
+    "name": "smartjobs_cv_analysis",
+    "description": "Mengekstrak skill, senioritas, peran, dan lokasi preferensi secara terstruktur dari teks CV atau hasil OCR/vision."
+  },
+  "response_generation": {
+    "name": "smartjobs_response_generation",
+    "description": "Menghasilkan keluaran JSON terstruktur beserta ringkasan bahasa natural untuk respons pencarian lowongan."
+  },
+  "skill_gap": {
+    "name": "smartjobs_skill_gap",
+    "description": "Menganalisis gap skill kandidat terhadap role target berdasarkan CV dan lowongan relevan."
+  },
+  "intent_router": {
+    "name": "smartjobs_intent_router",
+    "description": "Mengklasifikasikan intent ke mode chat lowongan, kueri SQL, analisis CV, rekomendasi CV, atau konsultasi gap skill."
+  }
+}
