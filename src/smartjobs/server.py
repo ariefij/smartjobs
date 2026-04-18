@@ -48,6 +48,7 @@ def health() -> dict:
     return {
         "status": "ok",
         "pesan": "Layanan sehat",
+        "build_version": "2026-04-19-ocr-fix",
         "jalur_sqlite": str(settings.sqlite_path),
         "koleksi_qdrant": settings.qdrant_collection_name,
         "llm_runtime_enabled": bool(settings.openai_api_key),
