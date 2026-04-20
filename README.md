@@ -224,7 +224,7 @@ docker build -t smartjobs-api .
 Tes lokal container:
 
 ```bash
-docker run --rm -p 8090:8080 --env-file .env smartjobs-api
+docker run --rm -p 8085:8080 --env-file .env smartjobs-api
 ```
 
 Akses endpoint:
@@ -242,13 +242,13 @@ Ikuti panduan lengkap di:
 Ringkasnya:
 
 ```bash
-gcloud builds submit --tag gcr.io/finpro-493407/smartjobs-api .
+gcloud builds submit --tag asia-southeast2-docker.pkg.dev/finpro-493407/smartjobs-repo/smartjobs-api .
 # Lihat daftar project yang Anda miliki
 gcloud projects list
 
 
 gcloud run deploy smartjobs-api \
-  --image gcr.io/finpro-493407/smartjobs-api \
+  --image smartjobs-repo/smartjobs-api \
   --platform managed \
   --region asia-southeast2 \
   --allow-unauthenticated

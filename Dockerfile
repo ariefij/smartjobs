@@ -1,38 +1,27 @@
-# Use Python 3.11 as base image
 FROM python:3.11-slim
-# Set working directory
+
 WORKDIR /app
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    libl1 \
-    libglib2.0-0 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
-# Install Poetry
+
+COPY pyproject.toml poetry.lock* ./
+
 RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="/root/.local/bin:$PATH"
-# Copy project files
-COPY pyproject.toml poetry.lock* ./
-# Install project dependencies
+
+# install third-party deps only
 RUN poetry config virtualenvs.create false \
-    && poetry install --only main --no-interaction --no-ansi
+    && poetry install --only main --no-root --no-interaction --no-ansi
 
-copy . .
+# copy app source
+COPY . .
 
-#install project itself
-RUN poetry install --no-interaction --no-ansi
+# install the project itself (now README.md and source code already exist)
+RUN poetry install --only main --no-interaction --no-ansi
 
-# Expose the FastAPI port
 EXPOSE 8080
 
-# Set environment variables (Placeholders, should be provided at runtime)
-# ENV OPENAI_API_KEY=
-# ENV QDRANT_URL=
-# ENV QDRANT_API_KEY=
-# ENV QDRANT_COLLECTION_NAME=
-# ENV EMBEDDING_MODEL=
-# ENV LLM_MODEL=
-
-# Set the command to run the FastAPI server
-CMD ["uvicorn", "agent_st.server:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "smartjobs.server:app", "--host", "0.0.0.0", "--port", "8080"]

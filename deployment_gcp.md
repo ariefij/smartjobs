@@ -111,8 +111,8 @@ Contoh memakai region `us-central1` dan nama repository `smartjobs`:
 
 ```bash
 export PROJECT_ID=$(gcloud config get-value project)
-export REGION=us-central1
-export REPOSITORY=smartjobs
+export REGION=asia-southeast2
+export REPOSITORY=smartjobs-repo
 export IMAGE_NAME=smartjobs-api
 
 gcloud artifacts repositories create $REPOSITORY \
@@ -126,7 +126,7 @@ Kalau repository sudah ada, perintah ini bisa dilewati.
 Format image yang akan dipakai:
 
 ```bash
-$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME
+asia-southeast2-docker.pkg.dev/finpro-493407/smartjobs-repo/smartjobs-api
 ```
 
 ---
