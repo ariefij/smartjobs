@@ -200,6 +200,19 @@ poetry run python script/build_qdrant.py --preview-only
 poetry run python script/build_qdrant.py
 ```
 
+## Running Locally
+
+### Streamlit Simulation
+```bash
+poetry run streamlit run src/agent_st/simulation.py
+```
+
+### FastAPI Server
+```bash
+poetry run python src/agent_st/server.py
+```
+The API will be available at `http://localhost:8000`. You can visit `http://localhost:8000/docs` for the interactive API documentation.
+
 ## Build Docker image
 
 Build image production:
@@ -211,7 +224,7 @@ docker build -t smartjobs-api .
 Tes lokal container:
 
 ```bash
-docker run --rm -p 8080:8080 --env-file .env smartjobs-api
+docker run --rm -p 8090:8080 --env-file .env smartjobs-api
 ```
 
 Akses endpoint:
