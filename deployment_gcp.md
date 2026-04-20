@@ -349,8 +349,8 @@ gcloud builds submit --tag $IMAGE_URI
 ENV_VARS=$(grep -v '^#' .env | grep -v '^$' | xargs | sed 's/ /,/g')
 
 gcloud run deploy smartjobs-api \
-  --image $IMAGE_URI \
+  --image asia-southeast2-docker.pkg.dev/finpro-493407/smartjobs-repo/smartjobs-api:latest \
   --platform managed \
-  --region $REGION \
+  --region asia-southeast2 \
   --allow-unauthenticated \
   --set-env-vars="$ENV_VARS"
